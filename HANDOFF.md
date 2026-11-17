@@ -14,7 +14,7 @@
 There is no phased spec yet. The ranked list under **Next steps** is the working plan, with direction from `docs/README.md`. Step 1 (fixes) is done except the backpack straps.
 
 ## Branch / Worktree
-`claude/handoff-surf-cave-lookout-1e10a0`, worktree `/Users/irispepa/Projects/farshore/.claude/worktrees/handoff-surf-cave-lookout-1e10a0`. This session's changes are **uncommitted** here. `main` is at `81d9ae8` (not pushed); this branch adds `f7b5971` (handoff rewrite) on top.
+All work is merged to `main` (fast-forward, not pushed) in `/Users/irispepa/Projects/farshore`. This session ran on `claude/handoff-surf-cave-lookout-1e10a0` in `.claude/worktrees/handoff-surf-cave-lookout-1e10a0`, which can be archived. Start the next session from `main`.
 
 ## Status
 First playable slice works end to end on desktop. This session:
