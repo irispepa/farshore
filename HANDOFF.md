@@ -93,4 +93,4 @@ Nothing has run on a real iPhone yet.
 - **Image generation is limited:** no new generations, retries or revisions without an explicit request.
 - **Concepts awaiting review:** four, `character-sheet-v1`, `gameplay-ui-v1`, `loading-screen-v1`, `journal-concept-v1`.
 - **Bundle size:** the JS bundle is about 712 kB because of three.js.
-- **Hosting:** the host must serve `sw.js` with no-cache so new builds are picked up.
+- **Hosting:** live at https://irispepa.github.io/farshore/ (GitHub Pages, source "GitHub Actions"). `.github/workflows/pages.yml` builds and deploys on every push to `main`; don't add GitHub's "Static HTML" starter, which would publish the raw source. Pages caches files for 10 minutes; browsers check `sw.js` for updates past the HTTP cache by default (recalled, not tested on iPhone).

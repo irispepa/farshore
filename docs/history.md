@@ -38,3 +38,8 @@
 - Dev character viewer: `http://localhost:<port>/?char` in the dev build (`src/dev/charViewer.js`) shows her from several angles; see the comment at the top of that file for the query parameters (`yaws`, `focus`, `pose`, `expr`, outfit slots). Used with headless Playwright to compare against `character-sheet-v1.png`.
 - Checked: viewer shots of every pose, expression and both footwear and top variants; a headless new-game run at 844×390 (no console errors, about 60 fps under software rendering); `npx vite build` passes. Not checked on a phone.
 - User feedback afterwards: the surf level is good by ear. The hair needs another pass later: flat on the head, and the hanging mass reads like a strange hat (logged in the wishlist).
+
+## 2026-11-17 — Deployed to GitHub Pages
+
+- Repo pushed to https://github.com/irispepa/farshore. `.github/workflows/pages.yml` runs `npm ci` and `npx vite build` and publishes `dist/` on each push to `main`; Pages source is "GitHub Actions". The build already used relative paths, so it runs under `/farshore/` without changes.
+- Checked on https://irispepa.github.io/farshore/ with headless Chromium: the page, `sw.js`, manifest and icons return 200; the service worker precaches 16 files; a new game starts; the page relaunches offline from the cache with the save intact. Not yet checked on an iPhone.
