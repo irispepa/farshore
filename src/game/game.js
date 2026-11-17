@@ -293,6 +293,13 @@ export class Game {
     this.persist();
   }
 
+  // A find: wide eyes while its card is up, a laugh once it is put away.
+  async #delight(key) {
+    this.girl.setExpression('surprised');
+    await this.#card(key);
+    this.girl.setExpression('laugh', 2.4);
+  }
+
   // Called by the journal when a symbol is stamped on the map.
   #onMark(x, z) {
     this.sound.stamp?.();
@@ -308,7 +315,7 @@ export class Game {
     setTimeout(async () => {
       this.journal.close();
       this.sound.fanfare();
-      await this.#card('heading');
+      await this.#delight('heading');
       this.persist();
     }, 900);
     return true;
@@ -418,7 +425,7 @@ export class Game {
     for (const id of Object.keys(props.chests)) {
       if (!s.chests[id]) offer(POI[id === 'islet' ? 'islet' : 'shelfTip'], 2.6, 0.95, { label: 'Open', icon: 'hand', run: () => this.#openChest(id) });
     }
-    offer(POI.sign, 2.4, 2.0, { label: 'Read', icon: 'eye', run: () => this.#card('sign') });
+    offer(POI.sign, 2.4, 2.0, { label: 'Read', icon: 'eye', run: async () => { this.girl.setExpression('focused'); await this.#card('sign'); this.girl.setExpression('neutral'); } });
     offer(POI.lookout, 4.6, 1.3, { label: 'Look out', icon: 'eye', run: () => this.#startSpy('lookout') });
     const c = this.canoe.group.position;
     const dc = Math.hypot(p.x - c.x, p.z - c.z);
@@ -448,7 +455,7 @@ export class Game {
     this.#clue('tin');
     this.sound.chime();
     await new Promise((r) => setTimeout(r, 650));
-    await this.#card('tin');
+    await this.#delight('tin');
     if (this.save.stage === 2) this.#hint('markNow', 4200, 0);
   }
 
@@ -461,7 +468,7 @@ export class Game {
     this.persist();
     this.sound.pickup?.();
     await new Promise((r) => setTimeout(r, 600));
-    await this.#card(lootCard(WARDROBE[loot.slot][loot.id].name, loot.where));
+    await this.#delight(lootCard(WARDROBE[loot.slot][loot.id].name, loot.where));
   }
 
   // ---- Per-frame ------------------------------------------------------------------
@@ -505,7 +512,7 @@ export class Game {
         this.#stopSpy();
         this.#clue('whale');
         this.sound.chime();
-        await this.#card('whale');
+        await this.#delight('whale');
         if (this.save.stage === 2) this.#hint('markNow', 4500, 0);
       }, 1500);
     }

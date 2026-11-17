@@ -28,6 +28,7 @@ Nothing has run on a real iPhone yet.
 - `npm install` (needed once per fresh worktree)
 - `npm run dev`: port 5183 from `.claude/launch.json`. The preview tool moves to the next free port if 5183 is taken.
 - `npx vite build`: production build plus service-worker precache (passes)
+- Character viewer: open `/?char` on the dev server (parameters in `src/dev/charViewer.js`).
 - Scripted playtests: the dev build exposes `window.ap` (`start()`, `st()`, `route([[x,z],…])`, `act()`, `ok()`, `run()`). The in-app preview pane stops `requestAnimationFrame` while hidden, so use headless Playwright at 844×390, or keep the pane visible.
 
 ## What exists
@@ -52,17 +53,10 @@ Nothing has run on a real iPhone yet.
 - PWA: manifest, icons (`scripts/make-icons.mjs`), service worker plugin in `vite.config.js`, `src/pwa.js`.
 
 ## Next steps
-1. **Listen to the surf** on the beach and from the canoe. It is about 6 dB quieter, but nobody has heard it yet. Tune `swell` gain and its LFO in `audio.js` if needed.
-2. **Backpack straps** sit inside the shirt. Make them sit proud of the top shell (`character.js`, `#gear`; the straps are tori on the chest joint).
-3. **Character art pass** (list in `docs/wishlist.md`):
-   - sneaker soles
-   - hair
-   - knee crease
-   - sit pose sinking into flat ground
-   - expressions
-   - shorts side panel
-
-   Compare against `character-sheet-v1.png`.
+1. ~~Listen to the surf~~ done 2026-11-17: the user listened and the level is good.
+2. ~~Backpack straps~~ done 2026-11-17 (see `docs/history.md`).
+3. ~~Character art pass~~ done 2026-11-17: sneakers, hair, skinned knees and elbows, ground sit pose, expressions, shorts panel. Leftovers are in `docs/wishlist.md`.
+   - **Hair needs another pass** (user feedback): the head hair is flat and the hanging mass reads like a strange hat.
 4. **Feel and small features:**
    - canoe fast mode (a sprint input that trims the sheet, with a wake and a heavier camera pull-back)
    - chest lid inner face
@@ -95,7 +89,6 @@ Nothing has run on a real iPhone yet.
 
 ## Known limitations / blockers
 - **No real-device run yet:** iPhone touch, performance and offline launch are all unverified.
-- **Surf level not confirmed by ear.**
 - **Art requests are blocked:** the art-request CLI worker's model `gpt-6.1-sol` is rejected (`model_not_found`). `scripts/request-farshore-art.mjs` accepts `--model`. Don't change global auth or config.
 - **Image generation is limited:** no new generations, retries or revisions without an explicit request.
 - **Concepts awaiting review:** four, `character-sheet-v1`, `gameplay-ui-v1`, `loading-screen-v1`, `journal-concept-v1`.

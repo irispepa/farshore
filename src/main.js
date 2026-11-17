@@ -20,6 +20,10 @@ async function boot() {
   } catch { /* fall back to the system rounded face */ }
   // Let the title paint before the world build blocks the main thread.
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has('char')) {
+    (await import('./dev/charViewer.js')).startCharViewer(document.getElementById('scene'));
+    return;
+  }
   const game = new Game(document.getElementById('scene'), document.getElementById('ui'));
   if (import.meta.env.DEV) import('./dev/autopilot.js').then((m) => m.installAutopilot(game));
   game.begin();

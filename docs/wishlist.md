@@ -2,15 +2,13 @@
 
 Deferred or out-of-scope items.
 
-## Character (noted 2026-11-17, during the Codex correction pass)
+## Character (updated 2026-11-17, after the art pass)
 
-- Sneakers: the accent sole reads as a flat plate wider than the shoe; reshape sole and upper.
-- Sit pose sinks shins and feet below the ground on flat terrain (pose looks tuned for the canoe seat).
-- Hair still reads as two smooth bunches from the front; wants wavier, layered clumps or an authored mesh.
-- Knee shows a crease where thigh and shin domes meet; a single skinned leg would remove it.
-- Expressions: face is a drawn texture (open/closed eyes only); add a small expression set.
-- Shorts: lilac side panel and notched hem from the character sheet.
-- Backpack straps vanish into the shirt (user playtest); see HANDOFF fixes.
+- Hair needs another pass (user feedback 2026-11-17): the hair on the head is flat while the hanging mass reads like a strange hat. The scalp cap and the mass need to become one shape with volume at the crown; also shorter and less curly than the character sheet.
+- Tee hem: the shorts waistband shows through the hem in slivers when she leans into a run.
+- Ground sit pose (`sitting: 'ground'`) exists but nothing uses it yet; pair it with the lookout bench or a beach rest.
+- Expressions only show when the camera is in front of her; a short camera turn on a find would make them count.
+- Pack: sticker art on the notebook, mesh texture on the bottle pocket and a scalloped shell charm, as on the sheet.
 
 ## Game (noted 2026-11-17, wiring session)
 
