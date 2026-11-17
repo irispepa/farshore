@@ -34,7 +34,7 @@ const TEMPLATE = `
   <button id="btn-resume" class="pill pink">Keep exploring</button>
   <button id="btn-sound" class="pill">Sound: on</button>
   <button id="btn-restart" class="pill">Restart voyage</button>
-  <p class="hint">Left thumb moves · right thumb looks around</p>
+  <p class="hint">Left thumb moves, push to the edge to run · right thumb looks around</p>
 </div></div>
 <div id="journal" class="overlay hidden"></div>
 <div id="rotate"><span>${ICON.rotate}</span><p>Turn your phone sideways to explore</p></div>`;

@@ -1,81 +1,352 @@
-// Tiny synthesised soundscape: surf, a discovery chime and soft UI ticks. No audio files.
+// Synthesised soundscape: continuous surf / wind / hull / cave layers steered by update(), plus one-shots. No audio files.
+const clamp01 = (v, d = 0) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : d);
+const rand = (a, b) => a + Math.random() * (b - a);
+const chain = (...nodes) => { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); return nodes[nodes.length - 1]; };
+const settle = (p) => p && p.catch && p.catch(() => {});
+const STEP_LEN = 0.75; // metres of travel per footstep
+const STEER_EVERY = 0.05; // s; keeps the automation timeline short instead of one event per frame
+
+function readMute() {
+  try { return localStorage.getItem('farshore-mute') === '1'; } catch { return false; }
+}
+
 export class Sound {
   constructor() {
     this.ctx = null;
-    this.muted = localStorage.getItem('farshore-mute') === '1';
+    this.muted = readMute();
+    this.paused = false;
+    this.stepDist = 0;
+    this.steerClock = STEER_EVERY;
+    this.lastPencil = -1;
+    this.targets = new Map();
   }
 
   // Must be called from a user gesture (iOS unlocks audio only then).
   start() {
-    if (this.ctx) { this.ctx.resume(); return; }
+    if (this.ctx) { if (!this.paused) settle(this.ctx.resume()); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     const ctx = (this.ctx = new AC());
-    this.master = ctx.createGain();
-    this.master.gain.value = this.muted ? 0 : 1;
-    this.master.connect(ctx.destination);
 
-    // Surf: looped noise through a low-pass that breathes like swell.
-    const len = ctx.sampleRate * 4, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
-    let b = 0;
-    for (let i = 0; i < len; i++) { b = b * 0.97 + (Math.random() * 2 - 1) * 0.03; d[i] = b * 6; }
-    const src = ctx.createBufferSource();
-    src.buffer = buf; src.loop = true;
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 700;
-    const surf = ctx.createGain();
-    surf.gain.value = 0.16;
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.13; lfoGain.gain.value = 0.09;
-    lfo.connect(lfoGain).connect(surf.gain);
-    const lfo2 = ctx.createOscillator(), lfo2Gain = ctx.createGain();
-    lfo2.frequency.value = 0.13; lfo2Gain.gain.value = 380;
-    lfo2.connect(lfo2Gain).connect(lp.frequency);
-    src.connect(lp).connect(surf).connect(this.master);
-    src.start(); lfo.start(); lfo2.start();
+    // bus -> highpass (phone speakers can't use the lows) -> compressor -> master (mute) -> out
+    this.master = this.#gain(this.muted ? 0 : 1);
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 3;
+    comp.attack.value = 0.006; comp.release.value = 0.25;
+    this.bus = this.#gain(1);
+    chain(this.bus, this.#filter('highpass', 85), comp, this.master, ctx.destination);
+    this.fx = this.#gain(1); // all one-shots go through here so the cave echo can catch them
+    this.fx.connect(this.bus);
+
+    // Cave echo: feedback delay, darkened on every pass.
+    this.echo = ctx.createDelay(1);
+    this.echo.delayTime.value = 0.27;
+    chain(this.echo, this.#filter('lowpass', 1900), this.#gain(0.42), this.echo);
+    chain(this.echo, this.#gain(0.7), this.bus);
+    this.echoSend = this.#gain(0);
+    chain(this.fx, this.echoSend, this.echo);
+    this.whaleSend = this.#gain(0.3);
+    this.whaleSend.connect(this.echo);
+
+    this.noise = this.#noiseBuffer(2, 0);
+    const brown = this.#noiseBuffer(4, 0.97);
+
+    // Surf: brown noise through a low-pass that breathes like swell.
+    this.surfLp = this.#filter('lowpass', 700);
+    const swell = this.#gain(0.16);
+    this.surfLevel = this.#gain(1);
+    this.#loop(brown, 0, this.surfLp, swell, this.surfLevel, this.bus);
+    this.#lfo(0.13, 0.09, swell.gain);
+    this.surfSweep = this.#lfo(0.13, 380, this.surfLp.frequency);
+
+    // Wind in the sail: band-passed noise with two slow, unrelated gust LFOs.
+    this.windBp = this.#filter('bandpass', 600, 0.9);
+    const gust = this.#gain(0.7);
+    this.windLevel = this.#gain(0);
+    this.#loop(this.noise, 0, this.windBp, gust, this.windLevel, this.bus);
+    this.#lfo(0.11, 0.25, gust.gain);
+    this.#lfo(0.037, 0.2, gust.gain);
+    this.#lfo(0.17, 160, this.windBp.frequency);
+
+    // Hull water-rush with a gentle lapping pulse.
+    this.hullBp = this.#filter('bandpass', 700, 0.6);
+    const lap = this.#gain(0.75);
+    this.hullLevel = this.#gain(0);
+    this.#loop(this.noise, 1, this.hullBp, lap, this.hullLevel, this.bus);
+    this.#lfo(0.8, 0.25, lap.gain);
+
+    // Singing rock: two slightly detuned tones beating ~1.3 Hz, slow tremolo and pitch wander.
+    const trem = this.#gain(0.65);
+    this.droneLevel = this.#gain(0);
+    chain(trem, this.#filter('lowpass', 1500), this.droneLevel, this.bus);
+    this.droneLevel.connect(this.echo);
+    [[329.63, 'sine', 0.6], [330.95, 'triangle', 0.4]].forEach(([f, type, lvl]) => {
+      const o = ctx.createOscillator();
+      o.type = type; o.frequency.value = f;
+      chain(o, this.#gain(lvl), trem);
+      o.start();
+      this.#lfo(0.05 + lvl * 0.04, 6, o.detune);
+    });
+    this.#lfo(0.23, 0.35, trem.gain);
   }
 
   setMuted(m) {
-    this.muted = m;
-    localStorage.setItem('farshore-mute', m ? '1' : '0');
-    if (this.master) this.master.gain.value = m ? 0 : 1;
+    this.muted = !!m;
+    try { localStorage.setItem('farshore-mute', m ? '1' : '0'); } catch { /* private mode */ }
+    if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 1, this.ctx.currentTime, 0.03);
   }
 
-  #note(freq, at, dur, gain = 0.12, type = 'sine') {
-    const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = type; o.frequency.value = freq;
-    g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(gain, at + 0.015);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    o.connect(g).connect(this.master);
-    o.start(at); o.stop(at + dur + 0.05);
+  suspend() {
+    this.paused = true;
+    if (this.ctx) settle(this.ctx.suspend());
+  }
+
+  resume() {
+    this.paused = false;
+    if (this.ctx) settle(this.ctx.resume());
+  }
+
+  // Per-frame: steer continuous layers and drive footsteps. Safe before start().
+  update(dt, state) {
+    if (!this.ctx || this.paused) return;
+    const s = state || {};
+    const dts = Number.isFinite(dt) ? Math.min(Math.max(dt, 0), 0.1) : 0;
+    const sail = s.mode === 'sail';
+    const speed = Number.isFinite(s.speed) ? Math.max(0, s.speed) : 0;
+    const wading = clamp01(s.wading), cave = clamp01(s.cave), shore = clamp01(s.shore, 1), wind = clamp01(s.wind);
+
+    this.steerClock += dts;
+    if (this.steerClock >= STEER_EVERY) {
+      this.steerClock = 0;
+      const rush = sail ? Math.min(1, speed / 6) : 0;
+      this.#steer(this.surfLevel.gain, 0.2 + 0.8 * shore);
+      this.#steer(this.surfLp.frequency, 700 - 440 * cave, 0.5);
+      this.#steer(this.surfSweep.gain, 380 * (1 - 0.65 * cave), 0.5);
+      this.#steer(this.windLevel.gain, wind * (sail ? 0.11 : 0.035) * (1 - cave));
+      this.#steer(this.windBp.frequency, 450 + 650 * wind, 0.6);
+      this.#steer(this.hullLevel.gain, 0.13 * rush ** 1.3);
+      this.#steer(this.hullBp.frequency, 500 + 700 * rush);
+      this.#steer(this.droneLevel.gain, 0.055 * cave ** 1.5, 0.8);
+      this.#steer(this.echoSend.gain, 0.55 * cave, 0.3);
+    }
+
+    if (sail) { this.stepDist = 0; return; }
+    if (speed < 0.15) return;
+    this.stepDist += speed * dts;
+    if (this.stepDist >= STEP_LEN) {
+      this.stepDist %= STEP_LEN;
+      this.step(wading > 0.15 ? 'wet' : cave > 0.4 ? 'rock' : 'sand', Math.min(1, 0.55 + speed / 8));
+    }
+  }
+
+  // kind: 'sand' | 'wet' | 'rock'. vol (0..1) is optional.
+  step(kind = 'sand', vol = 1) {
+    if (!this.#live()) return;
+    const t = this.#now(), v = Math.max(0.05, vol) * rand(0.8, 1.1);
+    if (kind === 'wet') {
+      this.#burst(t, 0.2, { gain: 0.07 * v, freq: rand(1300, 1700), to: 600, q: 0.8, attack: 0.012 });
+      this.#burst(t + 0.03, 0.14, { gain: 0.05 * v, type: 'lowpass', freq: 700 });
+    } else if (kind === 'rock') {
+      this.#burst(t, 0.05, { gain: 0.05 * v, freq: rand(1800, 2400), q: 2.5, attack: 0.002 });
+      this.#note(rand(190, 230), t, 0.07, 0.03 * v, 'triangle', { to: 150, attack: 0.003 });
+    } else {
+      this.#burst(t, rand(0.07, 0.1), { gain: 0.055 * v, freq: rand(700, 1000), to: 450, q: 0.9, attack: 0.008 });
+    }
   }
 
   chime() {
-    if (!this.ctx) return;
-    const t = this.ctx.currentTime;
+    if (!this.#live()) return;
+    const t = this.#now();
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => { this.#note(f, t + i * 0.09, 0.9, 0.1, 'triangle'); this.#note(f * 2, t + i * 0.09, 0.5, 0.03); });
   }
 
   fanfare() {
-    if (!this.ctx) return;
-    const t = this.ctx.currentTime;
+    if (!this.#live()) return;
+    const t = this.#now();
     [392, 523.25, 659.25, 783.99, 659.25, 1046.5].forEach((f, i) => this.#note(f, t + i * 0.14, 1.1, 0.11, 'triangle'));
   }
 
   tick() {
-    if (!this.ctx) return;
-    this.#note(880, this.ctx.currentTime, 0.08, 0.05);
+    if (!this.#live()) return;
+    this.#note(880, this.#now(), 0.08, 0.05);
   }
 
   splash() {
-    if (!this.ctx) return;
-    const ctx = this.ctx, t = ctx.currentTime, len = ctx.sampleRate * 0.5;
+    if (!this.#live()) return;
+    this.#burst(this.#now(), 0.8, { gain: 0.12, freq: 1200, attack: 0.004 });
+  }
+
+  // Quick sine sparkle: faster, higher and lighter than chime().
+  pickup() {
+    if (!this.#live()) return;
+    const t = this.#now();
+    [783.99, 1046.5, 1318.5, 1568].forEach((f, i) => {
+      this.#note(f, t + i * 0.05, 0.3 - i * 0.03, 0.06, 'sine', { attack: 0.004 });
+      this.#note(f * 2.01, t + i * 0.05, 0.12, 0.012, 'sine', { attack: 0.004 });
+    });
+  }
+
+  paper() {
+    if (!this.#live()) return;
+    const t = this.#now();
+    this.#burst(t, 0.16, { gain: 0.045, freq: 1600, to: 3200, q: 0.7, attack: 0.03 });
+    this.#burst(t + 0.09, 0.22, { gain: 0.035, freq: 2600, to: 1400, q: 0.6, attack: 0.04 });
+  }
+
+  pencil() {
+    if (!this.#live()) return;
+    const now = this.ctx.currentTime;
+    if (now - this.lastPencil < 0.08) return;
+    this.lastPencil = now;
+    this.#burst(this.#now(), 0.035, { gain: 0.018, freq: rand(2200, 3000), q: 1.8, attack: 0.004 });
+  }
+
+  stamp() {
+    if (!this.#live()) return;
+    const t = this.#now();
+    this.#note(240, t, 0.16, 0.16, 'sine', { to: 110, attack: 0.004 });
+    this.#note(520, t, 0.07, 0.05, 'triangle', { to: 300, attack: 0.002 });
+    this.#burst(t, 0.04, { gain: 0.05, type: 'lowpass', freq: 1800, attack: 0.002 });
+  }
+
+  // Wooden creak (band-passed sawtooth with a pitch bend) plus a hull thud.
+  creak() {
+    if (!this.#live()) return;
+    const ctx = this.ctx, t = this.#now(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(rand(80, 95), t);
+    o.frequency.linearRampToValueAtTime(rand(120, 140), t + 0.22);
+    o.frequency.linearRampToValueAtTime(rand(95, 105), t + 0.42);
+    this.#env(g.gain, t, 0.5, 0.22, 0.06);
+    chain(o, this.#filter('bandpass', 850, 4), g, this.fx);
+    o.start(t); o.stop(t + 0.55);
+    this.#note(170, t + 0.05, 0.22, 0.15, 'sine', { to: 85 });
+    this.#burst(t + 0.05, 0.18, { gain: 0.07, type: 'lowpass', freq: 500 });
+  }
+
+  // ~4.5 s humpback-like phrase: moan, rising "whup", lower answering moan.
+  whaleSong() {
+    if (!this.#live()) return;
+    const t = this.#now();
+    this.#moan(t, [[0, 210], [1.1, 320], [2.0, 190]], 0.08);
+    this.#moan(t + 2.3, [[0, 150], [0.35, 420]], 0.07);
+    this.#moan(t + 2.9, [[0, 280], [0.8, 250], [1.6, 175]], 0.06);
+  }
+
+  breach() {
+    if (!this.#live()) return;
+    const t = this.#now();
+    this.#note(130, t, 1.4, 0.22, 'sine', { to: 50, attack: 0.03 });
+    this.#note(190, t, 0.9, 0.08, 'triangle', { to: 80, attack: 0.03 });
+    this.#burst(t, 2.4, { gain: 0.2, type: 'lowpass', freq: 1100, to: 220, attack: 0.05 });
+    this.#burst(t + 0.25, 1.6, { gain: 0.05, freq: 1800, to: 900, q: 0.7, attack: 0.2 }); // falling spray
+  }
+
+  error() {
+    if (!this.#live()) return;
+    const t = this.#now();
+    this.#note(587.33, t, 0.22, 0.07, 'triangle');
+    this.#note(493.88, t + 0.15, 0.38, 0.07, 'triangle', { to: 466 });
+  }
+
+  // --- internals ---
+
+  #live() { return !!this.ctx && !this.muted && !this.paused; }
+  #now() { return this.ctx.currentTime + 0.01; }
+
+  #gain(v) {
+    const g = this.ctx.createGain();
+    g.gain.value = v;
+    return g;
+  }
+
+  #filter(type, freq, q = 0.7) {
+    const f = this.ctx.createBiquadFilter();
+    f.type = type; f.frequency.value = freq; f.Q.value = q;
+    return f;
+  }
+
+  #noiseBuffer(seconds, smooth) {
+    const ctx = this.ctx, len = Math.floor(ctx.sampleRate * seconds);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
-    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 1200; g.gain.value = 0.12;
-    src.connect(f).connect(g).connect(this.master);
-    src.start(t);
+    let b = 0;
+    for (let i = 0; i < len; i++) {
+      b = b * smooth + (Math.random() * 2 - 1) * (1 - smooth);
+      d[i] = smooth ? b * 6 : b;
+    }
+    return buf;
+  }
+
+  #loop(buf, offset, ...nodes) {
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    chain(src, ...nodes);
+    src.start(0, offset);
+  }
+
+  // Returns the depth gain so callers can steer modulation depth.
+  #lfo(freq, depth, param) {
+    const o = this.ctx.createOscillator(), g = this.#gain(depth);
+    o.frequency.value = freq;
+    o.connect(g); g.connect(param);
+    o.start();
+    return g;
+  }
+
+  #steer(param, v, tc = 0.25) {
+    const last = this.targets.get(param);
+    if (last !== undefined && Math.abs(last - v) <= 1e-3 * Math.max(1, Math.abs(v))) return;
+    this.targets.set(param, v);
+    param.setTargetAtTime(v, this.ctx.currentTime, tc);
+  }
+
+  #env(p, at, dur, peak, attack) {
+    p.setValueAtTime(0, at);
+    p.linearRampToValueAtTime(peak, at + attack);
+    p.exponentialRampToValueAtTime(0.0001, at + dur);
+  }
+
+  #note(freq, at, dur, gain = 0.12, type = 'sine', o = {}) {
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, at);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, at + dur);
+    this.#env(g.gain, at, dur, gain, o.attack ?? 0.015);
+    chain(osc, g, this.fx);
+    osc.start(at); osc.stop(at + dur + 0.05);
+  }
+
+  #burst(at, dur, { gain, type = 'bandpass', freq, to, q = 1, attack = 0.005 }) {
+    const src = this.ctx.createBufferSource(), f = this.#filter(type, freq, q), g = this.ctx.createGain();
+    src.buffer = this.noise; src.loop = true;
+    f.frequency.setValueAtTime(freq, at);
+    if (to) f.frequency.exponentialRampToValueAtTime(to, at + dur);
+    this.#env(g.gain, at, dur, gain, attack);
+    chain(src, f, g, this.fx);
+    src.start(at, Math.random() * this.noise.duration);
+    src.stop(at + dur + 0.05);
+  }
+
+  #moan(at, pts, gain) {
+    const ctx = this.ctx, dur = pts[pts.length - 1][0], end = at + dur + 0.4;
+    const g = ctx.createGain(), lp = this.#filter('lowpass', 1400);
+    const vib = ctx.createOscillator(), vibDepth = this.#gain(18); // cents
+    vib.frequency.value = rand(4.5, 5.5);
+    vib.connect(vibDepth);
+    [['triangle', 1, 1], ['sine', 2, 0.35]].forEach(([type, mul, lvl]) => {
+      const o = ctx.createOscillator();
+      o.type = type;
+      pts.forEach(([dt, f], i) => (i ? o.frequency.exponentialRampToValueAtTime(f * mul, at + dt) : o.frequency.setValueAtTime(f * mul, at)));
+      vibDepth.connect(o.detune);
+      chain(o, this.#gain(lvl), lp);
+      o.start(at); o.stop(end);
+    });
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(gain, at + dur * 0.3);
+    g.gain.setValueAtTime(gain, at + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, end);
+    chain(lp, g, this.fx);
+    g.connect(this.whaleSend);
+    vib.start(at); vib.stop(end);
   }
 }

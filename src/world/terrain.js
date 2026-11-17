@@ -17,7 +17,7 @@ export const CLEFT = [[17, -43.5, 7.5], [24, -44.5, 4.3], [30.5, -43.5, 1.2], [3
 export const CAVE = { x: 36, zMouth: -27, zLedge: -37, zBack: -45 };
 export const POI = {
   start: { x: 1, z: 35.5 },
-  canoe: { x: 12.5, z: 30.5, heading: 0.9 },
+  canoe: { x: 12.5, z: 30.5, heading: 2.0 },
   tin: { x: 38.6, z: -42.6 },
   lookout: { x: 63, z: -38 },
   whale: { x: 128, z: -16 },
@@ -221,9 +221,11 @@ function shade(i, j, h, ny, out) {
   if (h < 0.5) _d.lerp(PAL.lavaWet, 1 - smoothstep(-0.2, 0.5, h));
   _c.lerp(_d, rock);
 
-  _c.lerp(PAL.path, PATHW[k] * (h > 4.5 ? 0.75 : 0.9));
+  // The trail crosses over the cave; only the roof surface wears it, not the carved walls below.
+  if (h > H0[k] - 0.05) _c.lerp(PAL.path, PATHW[k] * (h > 4.5 ? 0.75 : 0.9));
 
-  if (CAVEW[k] > 0.3 && h < 1.2) _c.lerp(PAL.caveSand, smoothstep(0.3, 0.9, CAVEW[k]) * smoothstep(1.2, 0.7, h) * 0.9);
+  // Sand only on the flat floor: wall-foot vertices would smear it up the stretched wall faces.
+  if (CAVEW[k] > 0.3 && h < 1.2) _c.lerp(PAL.caveSand, smoothstep(0.3, 0.9, CAVEW[k]) * smoothstep(1.2, 0.7, h) * smoothstep(0.72, 0.93, ny) * 0.9);
 
   // Shoreline and seabed.
   if (h < 0.4 && rock < 0.6) _c.lerp(PAL.sandWet, (1 - smoothstep(0.02, 0.4, h)) * sandy * (1 - rock));

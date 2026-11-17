@@ -55,7 +55,7 @@ export function buildRocks(grain) {
     for (let k = 0; k < 2; k++) rock(x + (r() - 0.5) * 2, z + 1.4 - r() * 4.2 * (k ? 1 : 0.3), 0.7 + r() * 1.6 * (k ? 0.6 : 1), 0.3);
   }
   for (const [x, z, s] of [[29.2, -27.2, 2.4], [42.8, -27.4, 2.6], [27, -25.5, 1.4], [45.2, -25.8, 1.5], [30.4, -24.2, 0.9], [41.8, -24.6, 1.0],
-    [32.6, -43.9, 0.7], [40.4, -43.6, 0.9], [40.6, -38.4, 0.6], [31.7, -38.2, 0.55]]) rock(x, z, s, 0.3, s > 1.2);
+    [32.9, -44.3, 0.7], [39.4, -43.8, 0.9], [39.3, -38.4, 0.6], [32.8, -38.2, 0.55]]) rock(x, z, s, 0.3, s > 1.2);
 
   // South shelf: tide-pool boulders, with a walking lane left clear.
   for (let i = 0; i < 260; i++) {
@@ -169,15 +169,21 @@ function makeChest() {
   const wood = std(0xb9834f, 0.8), band = std(0xff6fa8, 0.5), shell = std(0xfff0dc, 0.4);
   const base = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.34, 0.42, 2, 0.04), wood);
   base.position.y = 0.17;
+  // The lid hinges along the back edge.
+  const hinge = new THREE.Group();
+  hinge.position.set(0, 0.34, -0.21);
   const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.62, 12, 1, false, 0, Math.PI), wood);
-  lid.rotation.z = Math.PI / 2; lid.rotation.y = Math.PI / 2; lid.position.y = 0.34;
-  g.add(base, lid);
+  lid.rotation.z = Math.PI / 2; lid.rotation.y = Math.PI / 2; lid.position.z = 0.21;
+  hinge.add(lid);
+  g.add(base, hinge);
+  g.userData.hinge = hinge;
   for (const x of [-0.2, 0.2]) {
     const b = new THREE.Mesh(new THREE.TorusGeometry(0.215, 0.022, 6, 14, Math.PI), band);
-    b.rotation.y = Math.PI / 2; b.position.set(x, 0.34, 0);
+    b.rotation.y = Math.PI / 2; b.position.set(x, 0, 0.21);
     const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.34, 0.44), band);
     b2.position.set(x, 0.17, 0);
-    g.add(b, b2);
+    hinge.add(b);
+    g.add(b2);
   }
   const clasp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), shell);
   clasp.scale.set(1, 1, 0.5); clasp.position.set(0, 0.32, 0.22);

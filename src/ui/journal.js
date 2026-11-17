@@ -71,7 +71,7 @@ export class Journal {
     $('[data-act="undo"]').addEventListener('click', () => { host.tick(); this.undo(); });
 
     const ink = this.ink;
-    ink.addEventListener('pointerdown', (e) => { ink.setPointerCapture(e.pointerId); this.#down(this.#uv(e)); });
+    ink.addEventListener('pointerdown', (e) => { try { ink.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ } this.#down(this.#uv(e)); });
     ink.addEventListener('pointermove', (e) => { if (e.buttons || e.pointerType === 'touch') this.#move(this.#uv(e)); });
     ink.addEventListener('pointerup', (e) => this.#up(this.#uv(e)));
     ink.addEventListener('pointercancel', () => { this.stroke = null; this.erased = null; this.draw(); });
@@ -93,7 +93,7 @@ export class Journal {
   #move([u, v]) {
     if (this.stroke) {
       const p = this.stroke.p, n = p.length;
-      if (Math.hypot(u - p[n - 2], (v - p[n - 1]) * (MAP.h / MAP.w)) > 0.004) { p.push(u, v); this.draw(); }
+      if (Math.hypot(u - p[n - 2], (v - p[n - 1]) * (MAP.h / MAP.w)) > 0.004) { p.push(u, v); this.draw(); this.host.scribble?.(); }
     } else if (this.erased) this.#eraseAt(u, v);
   }
 

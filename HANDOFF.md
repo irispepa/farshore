@@ -2,6 +2,30 @@
 
 Session continuity lives here; design and asset docs are in `docs/`.
 
+## Status · 2026-11-17 (wiring session)
+
+The first slice is playable end to end: `npm run dev` (port 5183 via `.claude/launch.json`), `npx vite build` passes. Nothing committed yet from this session.
+
+**Now in the game**
+- `src/game/game.js` owns the loop and flow (title → play ↔ card / journal / pause, spyglass). `walker.js` (on foot: slopes, wading, cliff guards, cave roof layer), `sailing.js` (wind-driven canoe, reef/depth collision, landing search), `camera.js` (assisted chase camera with rock/roof collision, spyglass, title orbit), `save.js` (one localStorage slot, `farshore-save-v1`).
+- Story loop: letter → tin (by canoe through the cave mouth, or on foot via the path and cleft) → spot the koholā with the spyglass (Lookout, or from the canoe near her water) → mark the spot in the atlas → heading card. Two chests grant outfit pieces (islet: Sunset tee, by canoe; lava shelf tip: Seafoam high-tops, on foot); equip from the journal's Looks page.
+- Audio (`src/game/audio.js`): fully synthesised layers driven by `sound.update(dt, state)` plus one-shots. PWA: `public/manifest.webmanifest`, icons from `scripts/make-icons.mjs`, build-time service worker plugin in `vite.config.js`, `src/pwa.js`.
+- Dev-only `src/dev/autopilot.js` exposes `window.ap` (`st()`, `route([[x,z],…])`, `act()`, `ok()`, `start()`) for scripted playtests; it is not in production builds.
+
+**Verified (headless Chromium at 844×390, scripted)**: both routes to the tin, cave clue, place discovery, chest → outfit → equip, spyglass sighting, wrong and right atlas marks, save/continue, pause and two-tap restart, journal layout at phone size, production build with precache list.
+
+**Not verified**
+- Nothing has run on a real iPhone: touch feel, performance, safe areas, add-to-home-screen, offline launch.
+- Audio has never been listened to (levels, cave drone, whale song are untuned).
+- Whale-watching from the canoe ("Watch" action) shares the spyglass code but was not exercised.
+- The in-app preview pane stops `requestAnimationFrame` when hidden, so the game will not boot there unless the pane is visible.
+
+## Next
+
+1. Play it on the phone; tune stick/camera sensitivity, sail speed and audio levels by feel.
+2. Character and world art pass (see `docs/wishlist.md`).
+3. More cove content: extra outfit pieces, a second obstacle with several solutions, atlas symbols that matter.
+
 ## Status · 2026-11-17 (build session, interrupted by usage limit)
 
 Commit `2e9069c` ("WIP: save interrupted ... first build session") added a Vite + Three.js project (`npm run dev`, port 5183 via `.claude/launch.json`). `vite build` passes. Code is complete per file but not wired into a game.
@@ -18,12 +42,7 @@ Commit `2e9069c` ("WIP: save interrupted ... first build session") added a Vite 
 - Nothing has been viewed visually or tested on a phone. Character and world quality are unverified; the user expects to need model changes.
 - No PWA layer (manifest, service worker, offline); `public/` is empty.
 
-## Next
-
-1. Run the dev server and review the character and world visually; fix the model first.
-2. Propose, then write, the real `main.js`: game loop, state, third-person camera, walk/canoe mode switch, interact targets, wiring to Input/UI/Journal/Sound/story.
-3. Finish the first slice: sail, walk, two routes to a clue, one atlas annotation.
-4. Add PWA offline support; keep `docs/` in sync.
+(The "not done" list above was completed in the wiring session.)
 
 ## Status · 2026-11-17 (import)
 

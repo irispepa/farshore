@@ -71,5 +71,34 @@ export const CARDS = {
     body: `<p><b>Path Inland</b> climbs the stone steps to the headland.</p><p><b>Canoe Landing</b> is back along the sand.</p>`,
     button: 'Okay',
   },
+  heading: {
+    kicker: 'Atlas updated',
+    title: 'A first heading',
+    body: `<p>Your mark sits right where the koholā surfaced. Tūtū’s old route runs north-east, out past the reef.</p>
+      <p>The voyage has a direction now. Until the waʻa is ready for open water, the cove still has corners to map and looks to find.</p>`,
+    button: 'Keep exploring',
+  },
   wrongMark: 'Hmm. She surfaced further out, north-east past the reef.',
+};
+
+// What each hidden chest holds.
+export const LOOT = {
+  islet: { slot: 'top', id: 'sunset', where: 'on the islet beyond the reef' },
+  shelf: { slot: 'footwear', id: 'seafoam', where: 'at the tip of the lava shelf' },
+};
+export const lootCard = (name, where) => ({
+  kicker: 'New look found',
+  title: name,
+  body: `<p>Tucked in a little chest ${where}. Someone left this for an explorer.</p><p>Try it on from the <b>Looks</b> page of your journal.</p>`,
+  button: 'Cute!',
+});
+
+export const HINT = {
+  deep: 'Too deep to wade. The waʻa could cross this.',
+  edge: 'The open sea is for another chapter.',
+  shallow: 'Too shallow here. Steer for deeper water.',
+  reef: 'Reef! Look for the darker gaps between the coral heads.',
+  markNow: 'Open your journal and mark where she surfaced.',
+  spyWait: 'Keep the glass on the open water…',
+  sailTip: 'Push forward to fill the sail · steer left and right',
 };

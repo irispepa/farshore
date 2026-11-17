@@ -272,45 +272,47 @@ export class Character {
     for (const [region, meshes] of Object.entries(this.bodyParts)) for (const m of meshes) m.visible = !covered.has(region);
   }
 
-  // state: { speed (m/s), sitting, wading (0..1) }
+  // state: { speed (m/s), run (0..1 running gait), sitting, reaching }
   update(dt, state) {
     this.time += dt;
     const J = this.j, t = this.time;
     const amp = (this.amp = damp(this.amp, clamp(state.speed / 3.4, 0, 1), 10, dt));
     const sit = (this.sit = damp(this.sit, state.sitting ? 1 : 0, 7, dt));
     this.reach = damp(this.reach, state.reaching ? 1 : 0, 8, dt);
-    this.phase += state.speed * dt * 2.75;
+    const run = state.run || 0;
+    // Running takes longer strides, so the cadence rises less than the speed does.
+    this.phase += state.speed * dt * 2.75 * (1 - 0.3 * run);
     const sw = Math.sin(this.phase), cw = Math.cos(this.phase);
     const idle = 1 - amp, breath = Math.sin(t * 1.7);
     const st = 1 - sit;
 
     // Hips and torso.
-    J.hips.position.y = (0.8 - amp * 0.025 + Math.abs(cw) * 0.035 * amp + breath * 0.004 * idle) * st + 0.15 * sit;
+    J.hips.position.y = (0.8 - amp * 0.025 - run * 0.03 + Math.abs(cw) * (0.035 + 0.045 * run) * amp + breath * 0.004 * idle) * st + 0.15 * sit;
     J.hips.rotation.set(0.04 * amp * st, -sw * 0.1 * amp * st, sw * 0.03 * amp * st);
-    J.spine.rotation.set((0.09 * amp + this.reach * 0.5) * st - 0.05 * sit, sw * 0.14 * amp * st, 0);
+    J.spine.rotation.set((0.09 * amp + 0.16 * run + this.reach * 0.5) * st - 0.05 * sit, sw * (0.14 + 0.08 * run) * amp * st, 0);
     J.chest.rotation.set(breath * 0.012, sw * 0.08 * amp * st, 0);
-    J.head.rotation.set(-0.05 * amp + Math.sin(t * 0.6) * 0.03 * idle + this.reach * 0.2, Math.sin(t * 0.37) * 0.12 * idle, 0);
+    J.head.rotation.set(-0.05 * amp - 0.12 * run + Math.sin(t * 0.6) * 0.03 * idle + this.reach * 0.2, Math.sin(t * 0.37) * 0.12 * idle, 0);
 
     // Legs.
     for (const [s, sg] of [['L', 1], ['R', -1]]) {
       const ph = this.phase + (sg > 0 ? 0 : Math.PI);
       const swing = Math.sin(ph);
       const lift = Math.max(0, Math.sin(ph + 1.1));
-      J['hip' + s].rotation.set((-swing * 0.72 * amp) * st - 1.48 * sit, 0, sg * 0.03 * st + sg * 0.1 * sit);
-      J['knee' + s].rotation.x = (0.08 + lift * 1.05 * amp) * st + 1.35 * sit;
+      J['hip' + s].rotation.set((-swing * (0.72 + 0.3 * run) * amp - 0.12 * run) * st - 1.48 * sit, 0, sg * 0.03 * st + sg * 0.1 * sit);
+      J['knee' + s].rotation.x = (0.08 + lift * (1.05 + 0.55 * run) * amp + 0.12 * run) * st + 1.35 * sit;
       J['ankle' + s].rotation.x = (swing * 0.25 * amp - lift * 0.3 * amp) * st + 0.1 * sit;
       // Arms swing opposite the legs; resting they hang slightly out from the body.
       const arm = -swing;
       J['shoulder' + s].rotation.set(
-        (arm * 0.62 * amp + Math.sin(t * 1.1 + sg) * 0.03 * idle - this.reach * (sg > 0 ? 0 : 1.1)) * st - 0.55 * sit,
+        (arm * (0.62 + 0.4 * run) * amp + Math.sin(t * 1.1 + sg) * 0.03 * idle - this.reach * (sg > 0 ? 0 : 1.1)) * st - 0.55 * sit,
         0,
         sg * (0.13 + 0.04 * amp) * st + sg * 0.22 * sit,
       );
-      J['elbow' + s].rotation.x = -(0.18 + 0.5 * amp + Math.max(0, arm) * 0.35 * amp + this.reach * (sg > 0 ? 0 : 0.5)) * st - 0.75 * sit;
+      J['elbow' + s].rotation.x = -(0.18 + 0.5 * amp + 0.75 * run + Math.max(0, arm) * 0.35 * amp + this.reach * (sg > 0 ? 0 : 0.5)) * st - 0.75 * sit;
     }
 
     // Hair follows with a little lag.
-    const target = -clamp(state.speed * 0.045, 0, 0.3) * st + Math.sin(this.phase * 2) * 0.035 * amp;
+    const target = -clamp(state.speed * 0.045, 0, 0.36) * st + Math.sin(this.phase * 2) * 0.035 * amp;
     this.hairVel += ((target - this.hairSway.rotation.x) * 60 - this.hairVel * 9) * dt;
     this.hairSway.rotation.x += this.hairVel * dt;
     this.hairSway.rotation.z = Math.sin(t * 1.3) * 0.02 + sw * 0.03 * amp;

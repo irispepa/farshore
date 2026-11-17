@@ -89,6 +89,13 @@ export class Input {
     return out;
   }
 
+  // Run when the stick is pushed to its edge, or Shift is held with the keys.
+  get sprint() {
+    if (!this.enabled) return false;
+    if (this.stick) return Math.hypot(this.move.x, this.move.y) > 0.88;
+    return this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+  }
+
   consumeLook(out) {
     out.dx = this.look.dx; out.dy = this.look.dy;
     this.look.dx = this.look.dy = 0;

@@ -6,7 +6,7 @@ Read first: `HANDOFF.md` (status, blockers), then `docs/README.md` (direction, a
 
 ## State
 
-Pre-code. Only concept art, briefs and an art-request script exist. No runtime, no `package.json` yet. Imported from the `flight-games` repo (commit `0f8f252`); nothing else from that repo belongs here.
+First playable slice exists: Vite + Three.js, `npm run dev`, `npx vite build`. Game code is in `src/` (`game/` loop and controllers, `world/`, `entities/`, `ui/`, `fx/`). Untested on a real phone. Imported from the `flight-games` repo (commit `0f8f252`); nothing else from that repo belongs here.
 
 ## Layout
 
@@ -36,7 +36,7 @@ Pre-code. Only concept art, briefs and an art-request script exist. No runtime, 
 
 ## Next
 
-Review the four pending concepts and construction sheet, then build the first playable slice: a small cove with sailing, walking, two routes to a clue, and one atlas annotation interaction.
+See `HANDOFF.md`: phone playtest and tuning, art pass, more cove content.
 
 ## Working rules
 
