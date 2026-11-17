@@ -1,65 +1,62 @@
 # Farshore handoff
 
-Session continuity lives here; design and asset docs are in `docs/`.
+Session continuity lives here; design and asset docs are in `docs/`, deferred polish in `docs/wishlist.md`, dated log in `docs/history.md`.
 
-## Status · 2026-11-17 (wiring session)
+## Status · 2026-11-17
 
-The first slice is playable end to end: `npm run dev` (port 5183 via `.claude/launch.json`), `npx vite build` passes. Nothing committed yet from this session.
+First playable slice, merged to `main` at `81d9ae8` (not pushed). `npm run dev` serves on port 5183 (`.claude/launch.json`; the preview tool moves to the next free port if it is taken). `npx vite build` passes.
 
-**Now in the game**
-- `src/game/game.js` owns the loop and flow (title → play ↔ card / journal / pause, spyglass). `walker.js` (on foot: slopes, wading, cliff guards, cave roof layer), `sailing.js` (wind-driven canoe, reef/depth collision, landing search), `camera.js` (assisted chase camera with rock/roof collision, spyglass, title orbit), `save.js` (one localStorage slot, `farshore-save-v1`).
-- Story loop: letter → tin (by canoe through the cave mouth, or on foot via the path and cleft) → spot the koholā with the spyglass (Lookout, or from the canoe near her water) → mark the spot in the atlas → heading card. Two chests grant outfit pieces (islet: Sunset tee, by canoe; lava shelf tip: Seafoam high-tops, on foot); equip from the journal's Looks page.
-- Audio (`src/game/audio.js`): fully synthesised layers driven by `sound.update(dt, state)` plus one-shots. PWA: `public/manifest.webmanifest`, icons from `scripts/make-icons.mjs`, build-time service worker plugin in `vite.config.js`, `src/pwa.js`.
-- Dev-only `src/dev/autopilot.js` exposes `window.ap` (`st()`, `route([[x,z],…])`, `act()`, `ok()`, `start()`) for scripted playtests; it is not in production builds.
+**What exists**
+- `src/game/`: `game.js` (loop and flow: title → play ↔ card / journal / pause, spyglass), `walker.js` (on foot, walk 3.2 / run 5.8 m/s, slopes, wading, cave roof layer), `sailing.js` (wind-driven canoe, reef and depth collision, landing search), `camera.js` (assisted chase camera, spyglass, title orbit), `save.js` (one localStorage slot, `farshore-save-v1`), `input.js` (floating stick, right-thumb camera, keyboard; edge-of-stick or Shift runs), `audio.js` (synthesised layers driven by `sound.update(dt, state)` plus one-shots), `story.js`.
+- `src/world/`, `src/entities/`, `src/fx/`, `src/ui/`: cove, canoe, whale, character, HUD, journal and atlas.
+- PWA: `public/manifest.webmanifest`, icons from `scripts/make-icons.mjs`, build-time service worker plugin in `vite.config.js`, `src/pwa.js`.
+- Dev-only `src/dev/autopilot.js` exposes `window.ap` (`st()`, `route([[x,z],…])`, `act()`, `ok()`, `run()`, `start()`) for scripted playtests; not in production builds.
+- Story loop: letter → Tūtū's tin (canoe through the cave mouth, or on foot via the path and cleft) → spot the koholā with the spyglass → mark the spot in the atlas → "first heading" card. Two chests give outfit pieces (islet: Sunset tee, by canoe; lava shelf tip: Seafoam high-tops, on foot), equipped from the journal's Looks page.
 
-**Verified (headless Chromium at 844×390, scripted)**: both routes to the tin, cave clue, place discovery, chest → outfit → equip, spyglass sighting, wrong and right atlas marks, save/continue, pause and two-tap restart, journal layout at phone size, production build with precache list.
+**Verified** (scripted, headless Chromium at 844×390): both routes to the tin, cave clue, place discovery, chests and equipping, spyglass sighting, wrong and right atlas marks, save/continue, pause and two-tap restart, journal layout at phone size, running, production build and precache list.
 
-**Not verified**
-- Nothing has run on a real iPhone: touch feel, performance, safe areas, add-to-home-screen, offline launch.
-- Audio has never been listened to (levels, cave drone, whale song are untuned).
-- Whale-watching from the canoe ("Watch" action) shares the spyglass code but was not exercised.
+**Not verified:** nothing has run on a real iPhone (touch feel, performance, safe areas, add-to-home-screen, offline launch). Whale-watching from the canoe ("Watch") shares the spyglass code but was not exercised by script; the user reports the spyglass works from the shore and other angles.
+
+**User playtest feedback (desktop)**
+- UI is excellent. Whale sound and wave sound are good in character, but waves are too loud and distracting.
+- Cave sound reads as a thump, not the intended soft "singing" tones (two detuned tones near 330 Hz with slow tremolo and echo). Cause not yet diagnosed.
+- Spyglass from the top of the lookout hill is blocked by foliage, and she cannot get close enough to see the whale well.
+- Backpack straps disappear into the shirt.
+- Confirmed wanted: chest lid fix, bench sit at the lookout, title camera framing, canoe wake, and a fast sail mode for the canoe like land running.
+
+## Next, in order
+
+**1. Fixes to what exists**
+1. Lower the surf level (`audio.js`; surf follows `shore`, so also check it stays modest at the waterline).
+2. Replace the cave thump with the intended singing tones: find what is thumping (echo feedback, tremolo, or the darkened surf), then retune; listen after each change.
+3. Lookout whale view: clear or hide foliage between the lookout and the water, move or raise the eye point, and let the glass zoom or aim so the whale is large enough to see well. Check the spyglass at the lookout and from the canoe.
+4. Backpack straps: make them sit proud of the shirt (`character.js`, `#gear`; the straps are tori on the chest joint and the top shell now covers them).
+
+**2. Character art pass** (list in `docs/wishlist.md`): sneaker soles, hair, knee crease, sit pose sinking into flat ground, expressions, shorts side panel. Check the result against `art/farshore/concepts/character-sheet-v1.png`.
+
+**3. Feel and small features**
+1. Canoe fast mode, matching land running: a sprint input that trims the sheet for more speed, with a wake and heavier camera pull-back.
+2. Chest lid (hollow half-cylinder), sit on the lookout bench, canoe wake trail, seated steering pose, title orbit camera framing, spyglass lens ring.
+
+**4. New features**
+1. Atlas symbols that matter: let marks and routes unlock or gate something, not just decorate.
+2. More outfit pieces and chests, and a wardrobe size decision (open, see `docs/README.md`).
+3. A visible reward or beat after the first heading, so the chapter has an ending.
+
+**5. Expand the game**
+1. A second obstacle with several solutions (observation, equipment, route, relationship), per the design.
+2. Open-sea sailing and a second island; island hopping and treasure hunting.
+3. Lock or revise the proposed family-expedition plot, keeping original fiction separate from researched Hawaiian traditions.
+
+**6. Tech**
+- JS bundle is about 710 kB (three.js); trim imports if load time matters.
+- Hosting must serve `sw.js` with no-cache so new builds are picked up.
 - The in-app preview pane stops `requestAnimationFrame` when hidden, so the game will not boot there unless the pane is visible.
 
-## Next
+## Art and asset workflow
 
-1. Play it on the phone; tune stick/camera sensitivity, sail speed and audio levels by feel.
-2. Character and world art pass (see `docs/wishlist.md`).
-3. More cove content: extra outfit pieces, a second obstacle with several solutions, atlas symbols that matter.
-
-## Status · 2026-11-17 (build session, interrupted by usage limit)
-
-Commit `2e9069c` ("WIP: save interrupted ... first build session") added a Vite + Three.js project (`npm run dev`, port 5183 via `.claude/launch.json`). `vite build` passes. Code is complete per file but not wired into a game.
-
-**Written (~3,000 lines):**
-- `src/world/`: terrain, water, sky, flora, rocks/props for Sheltered Cove; assembled in `world.js`.
-- `src/entities/`: `character.js` (rigged, walk/sit, hair lag, blink, swappable outfit slots top/bottoms/footwear), `canoe.js`, `whale.js`; `src/fx/spray.js`.
-- `src/game/`: `input.js` (floating left stick, right-thumb camera, keyboard), `audio.js`, `story.js` (objectives, clues, tasks, places, cards, map bounds).
-- `src/ui/`: `ui.js` (HUD, title, pause, cards), `journal.js` (atlas/journal), `icons.js`; `src/style.css`.
-
-**Not done:**
-- `src/main.js` is a debug scaffold: builds the world, character, canoe and whale, renders from a fixed camera, character driven by `window.__spd` / `window.__sit`. `window.__dbg` and the hard-coded `view(...)` are dev-only and must go.
-- `Input`, `UI`, `Journal`, `Sound` are not imported by anything. No movement, chase camera, board/disembark canoe, interact targets, objectives/clues/atlas flow, title or pause.
-- Nothing has been viewed visually or tested on a phone. Character and world quality are unverified; the user expects to need model changes.
-- No PWA layer (manifest, service worker, offline); `public/` is empty.
-
-(The "not done" list above was completed in the wiring session.)
-
-## Status · 2026-11-17 (import)
-
-- Imported 2026-11-17 into this standalone project from the Codex worktree (originally the `flight-games` repo, commit `0f8f252`; art, docs, art script only). Original notes follow. Work was in the detached checkout initially based on `be4b2df`, `/Users/irispepa/.codex-workspaces/worktrees/ios-90991f9c-8abb-4190-99e3-9a42687d0625/flight-games`. The user authorized a local Farshore checkpoint commit in this worktree only; main must remain unchanged. No push was authorized or made.
-- [Direction and asset workflow](docs/README.md): third-person stylised 3D, girly '90s beach aesthetic, Maui/Hawaiian setting, whales, island hopping, treasure hunting, multiple solutions and a personal atlas. The family-expedition plot is proposed, not selected.
-- The user loves `art/farshore/concepts/gameplay-view-v1.png` and endorsed further exploration; it is a style reference. Runtime work started in the build session above.
-- Four follow-ups await review: `character-sheet-v1.png`, `gameplay-ui-v1.png`, `loading-screen-v1.png`, `journal-concept-v1.png`, all under `art/farshore/concepts/`. See [visual development](docs/visual-development.md) for exact prompts, dimensions and review notes. "Some uli" was interpreted as UI and stated before generation.
-- Clothing direction reaffirmed: outfits and accessories are discoverable collectibles. Keep a stable base character with swappable tops/bottoms/footwear and gear. Wardrobe size, individual looks and reward placement remain open.
-- The user has limited generation usage. A single combined construction sheet was authorized and saved as `art/farshore/concepts/character-construction-v1.png`; [exact prompt](docs/requests/character-construction-v1.md). It depicts only the starting outfit to conserve generation usage, not to remove outfit collection. No additional variants, retries or automatic revisions without a new request. It awaits review.
-- `scripts/request-farshore-art.mjs` prepares bounded CLI art requests. Syntax, dry run and overwrite refusal were checked. Direct built-in image generation succeeded in this chat.
-
-## Blocker
-
-A live CLI capability check failed because `gpt-6.1-sol` was rejected for the CLI's ChatGPT login (`model_not_found`). Automated image generation remains unverified. The script accepts `--model` for an explicitly available model; global authentication/configuration was not changed.
-
-## Earlier next steps
-
-Review the visual concepts and construction sheet. Resolve CLI model availability before relying on automatic calls. The proposed first playable slice is a small cove with sailing, walking, two routes to a clue and an atlas annotation interaction.
-
-The generated PNGs remain review/reference material, not captured gameplay, rigged models or integrated production assets. Preserve approved references and save revisions as siblings.
+- Direction and workflow: [docs/README.md](docs/README.md). Prompts and review notes: [docs/visual-development.md](docs/visual-development.md).
+- `art/farshore/concepts/gameplay-view-v1.png` is the accepted style reference. Four follow-ups still await the user's review: `character-sheet-v1.png`, `gameplay-ui-v1.png`, `loading-screen-v1.png`, `journal-concept-v1.png`. A fifth, `character-construction-v1.png`, shows only the starting outfit; it does not remove outfit collection.
+- Clothing: stable base character with swappable top/bottoms/footwear plus attached gear; outfits are collectibles. Wardrobe size and reward placement are open.
+- Image generation is limited. No new generations, retries or revisions without an explicit request. PNGs are style targets, not models or textures.
+- Blocker: the art-request CLI worker's model `gpt-6.1-sol` is rejected for the CLI login (`model_not_found`), so automated generation is unverified. `scripts/request-farshore-art.mjs` accepts `--model`; do not change global auth or config.

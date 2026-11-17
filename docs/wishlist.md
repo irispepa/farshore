@@ -10,6 +10,7 @@ Deferred or out-of-scope items.
 - Knee shows a crease where thigh and shin domes meet; a single skinned leg would remove it.
 - Expressions: face is a drawn texture (open/closed eyes only); add a small expression set.
 - Shorts: lilac side panel and notched hem from the character sheet.
+- Backpack straps vanish into the shirt (user playtest); see HANDOFF fixes.
 
 ## Game (noted 2026-11-17, wiring session)
 
@@ -18,6 +19,7 @@ Deferred or out-of-scope items.
 - Lookout bench: let her sit while watching.
 - Seated pose: add a steering-paddle hold and a lean into turns.
 - Canoe wake: a foam trail behind the hull, not only bow spray.
+- Canoe fast mode (sprint sail) like land running (user request).
 - Title orbit camera sits close to the headland; frame the whole cove.
 - JS bundle is ~710 kB (three.js); consider trimming imports if load time matters on the phone.
 - Service worker: host must serve `sw.js` with no-cache so new builds are picked up.
