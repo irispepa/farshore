@@ -30,7 +30,7 @@ export const PLACES = [
   { id: 'landing', name: 'Canoe Landing', x: 8, z: 40, r: 0 },
   { id: 'path', name: 'Path Inland', x: -27, z: -6, r: 9, at: [-19, 2] },
   { id: 'cave', name: 'Sea Cave', x: 36, z: -27, r: 0 },
-  { id: 'lookout', name: 'Lookout', x: 66, z: -45, r: 7, at: [62, -38] },
+  { id: 'lookout', name: 'Lookout', x: 79, z: -42, r: 7, at: [76, -35] },
   { id: 'reef', name: 'Reef', x: 82, z: 8, r: 16, at: [80, 6] },
   { id: 'islet', name: 'Islet', x: 97, z: 27, r: 12, at: [96, 20] },
 ];

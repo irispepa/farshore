@@ -11,7 +11,7 @@ const at = (i, j) => j * NX + i;
 export const COVE = { x: 30, z: 8, r: 34 };
 export const PATH = [
   [-11, 11, 0.7], [-19, 2, 1.9], [-25, -12, 4.2], [-22, -26, 6.0], [-12, -36, 7.1],
-  [0, -40, 7.6], [14, -38, 7.7], [36, -34, 7.7], [52, -37, 7.7], [62, -38, 7.8],
+  [0, -40, 7.6], [14, -38, 7.7], [36, -34, 7.7], [52, -37, 7.7], [62, -38, 7.8], [70, -37, 7.7], [75, -35.6, 7.6],
 ];
 export const CLEFT = [[17, -43.5, 7.5], [24, -44.5, 4.3], [30.5, -43.5, 1.2], [33.5, -42.5, 0.55]];
 export const CAVE = { x: 36, zMouth: -27, zLedge: -37, zBack: -45 };
@@ -19,7 +19,7 @@ export const POI = {
   start: { x: 1, z: 35.5 },
   canoe: { x: 12.5, z: 30.5, heading: 2.0 },
   tin: { x: 38.6, z: -42.6 },
-  lookout: { x: 63, z: -38 },
+  lookout: { x: 78, z: -34.5 }, // on the plateau's east lip, facing the whale grounds
   whale: { x: 128, z: -16 },
   islet: { x: 96, z: 20 },
   shelfTip: { x: 61, z: 47.5 },
@@ -96,7 +96,7 @@ function generate() {
       let h = natural(x, z, k);
 
       // Inland path: flatten a bench along the polyline.
-      if (x > -36 && x < 72 && z > -52 && z < 22) {
+      if (x > -36 && x < 82 && z > -52 && z < 22) {
         nearestOnPath(PATH, x, z, near);
         h = lerp(h, near.h, 1 - smoothstep(2.0, 5.5, near.d));
         PATHW[k] = 1 - smoothstep(0.8, 1.9, near.d + noise2(x * 0.7, z * 0.7) * 0.5);
@@ -155,6 +155,17 @@ export const rockAt = (x, z) => bilinear(ROCK, x, z);
 export const pathAt = (x, z) => bilinear(PATHW, x, z);
 export const caveAt = (x, z) => bilinear(CAVEW, x, z);
 export const reefAt = (x, z) => bilinear(REEF, x, z);
+
+// The lookout's sightline to the whale grounds (a wedge seaward of the bench) and the
+// bench clearing itself: kept free of shrubs, boulders and tall grass so the glass sees water.
+const VIEW_COS = Math.cos(0.6), VIEW_LEN = 40;
+export function inLookoutView(x, z) {
+  const L = POI.lookout, dx = x - L.x, dz = z - L.z, d = Math.hypot(dx, dz);
+  if (d < 5) return true;
+  if (d > VIEW_LEN) return false;
+  const wx = POI.whale.x - L.x, wz = POI.whale.z - L.z;
+  return (dx * wx + dz * wz) / (d * Math.hypot(wx, wz)) > VIEW_COS;
+}
 
 export function roofAt(x, z) {
   const i = Math.floor(x - X0), j = Math.floor(z - Z0);

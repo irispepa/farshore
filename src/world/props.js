@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { rng, lerp, clamp, TAU, noise2, fbm, nearestOnPath } from '../core/util.js';
-import { heightAt, rockAt, reefAt, pathAt, caveAt, PATH, CLEFT, POI, CAVE } from './terrain.js';
+import { heightAt, rockAt, reefAt, pathAt, caveAt, inLookoutView, PATH, CLEFT, POI, CAVE } from './terrain.js';
 import { addCollider, setInstance, timeUniform } from './common.js';
 import { SUN_DIR } from './sky.js';
 
@@ -75,7 +75,7 @@ export function buildRocks(grain) {
     const x = -6 + r() * 86, z = -48 + r() * 18, h = heightAt(x, z);
     if (h < 6.8 || caveAt(x, z) > 0.02) continue;
     if (nearestOnPath(PATH, x, z, near).d < 3.2 || nearestOnPath(CLEFT, x, z, near).d < 3.4) continue;
-    if (Math.hypot(x - POI.lookout.x, z - POI.lookout.z) < 5) continue;
+    if (inLookoutView(x, z)) continue;
     rock(x, z, 0.5 + r() * 1.0);
   }
   // Reef heads breaking the surface.
@@ -278,7 +278,7 @@ export function buildProps() {
     ribbon.position.set(1.5, 2.45, -0.4);
     l.add(pole, ribbon);
     l.position.set(POI.lookout.x, yAt(POI.lookout), POI.lookout.z);
-    l.rotation.y = -1.25;
+    l.rotation.y = -Math.atan2(POI.whale.x - POI.lookout.x, POI.whale.z - POI.lookout.z); // faces the whale grounds
     l.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     group.add(l);
     addCollider(POI.lookout.x, POI.lookout.z, 0.85);

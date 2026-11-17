@@ -49,14 +49,15 @@ export class Sound {
     this.whaleSend.connect(this.echo);
 
     this.noise = this.#noiseBuffer(2, 0);
-    const brown = this.#noiseBuffer(4, 0.97);
+    const brown = this.#noiseBuffer(6, 0.97);
 
-    // Surf: brown noise through a low-pass that breathes like swell.
+    // Surf: brown noise through a low-pass that breathes like swell. Kept well under the
+    // whale and the cues, with a shallow swell so it sits in the background.
     this.surfLp = this.#filter('lowpass', 700);
-    const swell = this.#gain(0.16);
+    const swell = this.#gain(0.075);
     this.surfLevel = this.#gain(1);
     this.#loop(brown, 0, this.surfLp, swell, this.surfLevel, this.bus);
-    this.#lfo(0.13, 0.09, swell.gain);
+    this.#lfo(0.13, 0.03, swell.gain);
     this.surfSweep = this.#lfo(0.13, 380, this.surfLp.frequency);
 
     // Wind in the sail: band-passed noise with two slow, unrelated gust LFOs.
@@ -75,19 +76,25 @@ export class Sound {
     this.#loop(this.noise, 1, this.hullBp, lap, this.hullLevel, this.bus);
     this.#lfo(0.8, 0.25, lap.gain);
 
-    // Singing rock: two slightly detuned tones beating ~1.3 Hz, slow tremolo and pitch wander.
-    const trem = this.#gain(0.65);
+    // Singing rock: a soft open chord (E4, B4, E5) of near-unison sine pairs. The pairs beat
+    // slowly (~0.5 and ~0.9 Hz) so it wavers like a hum rather than pulsing; one shared pitch
+    // wander keeps those beat rates steady, and a slow tremolo lets it breathe.
+    const trem = this.#gain(0.8);
     this.droneLevel = this.#gain(0);
     chain(trem, this.#filter('lowpass', 1500), this.droneLevel, this.bus);
     this.droneLevel.connect(this.echo);
-    [[329.63, 'sine', 0.6], [330.95, 'triangle', 0.4]].forEach(([f, type, lvl]) => {
+    const wander = this.#gain(4); // cents
+    const wanderLfo = ctx.createOscillator();
+    wanderLfo.frequency.value = 0.06;
+    wanderLfo.connect(wander); wanderLfo.start();
+    [[329.63, 0.5], [330.1, 0.2], [493.88, 0.14], [494.8, 0.06], [659.26, 0.05]].forEach(([f, lvl]) => {
       const o = ctx.createOscillator();
-      o.type = type; o.frequency.value = f;
+      o.type = 'sine'; o.frequency.value = f;
+      wander.connect(o.detune);
       chain(o, this.#gain(lvl), trem);
       o.start();
-      this.#lfo(0.05 + lvl * 0.04, 6, o.detune);
     });
-    this.#lfo(0.23, 0.35, trem.gain);
+    this.#lfo(0.19, 0.2, trem.gain);
   }
 
   setMuted(m) {
@@ -119,14 +126,15 @@ export class Sound {
     if (this.steerClock >= STEER_EVERY) {
       this.steerClock = 0;
       const rush = sail ? Math.min(1, speed / 6) : 0;
-      this.#steer(this.surfLevel.gain, 0.2 + 0.8 * shore);
-      this.#steer(this.surfLp.frequency, 700 - 440 * cave, 0.5);
-      this.#steer(this.surfSweep.gain, 380 * (1 - 0.65 * cave), 0.5);
+      // In the cave the surf drops back to a soft, muffled wash so the singing rock carries.
+      this.#steer(this.surfLevel.gain, (0.2 + 0.8 * shore) * (1 - 0.6 * cave), 0.5);
+      this.#steer(this.surfLp.frequency, 700 - 250 * cave, 0.5);
+      this.#steer(this.surfSweep.gain, 380 * (1 - 0.6 * cave), 0.5);
       this.#steer(this.windLevel.gain, wind * (sail ? 0.11 : 0.035) * (1 - cave));
       this.#steer(this.windBp.frequency, 450 + 650 * wind, 0.6);
       this.#steer(this.hullLevel.gain, 0.13 * rush ** 1.3);
       this.#steer(this.hullBp.frequency, 500 + 700 * rush);
-      this.#steer(this.droneLevel.gain, 0.055 * cave ** 1.5, 0.8);
+      this.#steer(this.droneLevel.gain, 0.06 * cave ** 1.5, 0.8);
       this.#steer(this.echoSend.gain, 0.55 * cave, 0.3);
     }
 
@@ -147,8 +155,9 @@ export class Sound {
       this.#burst(t, 0.2, { gain: 0.07 * v, freq: rand(1300, 1700), to: 600, q: 0.8, attack: 0.012 });
       this.#burst(t + 0.03, 0.14, { gain: 0.05 * v, type: 'lowpass', freq: 700 });
     } else if (kind === 'rock') {
-      this.#burst(t, 0.05, { gain: 0.05 * v, freq: rand(1800, 2400), q: 2.5, attack: 0.002 });
-      this.#note(rand(190, 230), t, 0.07, 0.03 * v, 'triangle', { to: 150, attack: 0.003 });
+      // A light tap, not a knock: the cave echo repeats it, so keep the low body small.
+      this.#burst(t, 0.045, { gain: 0.04 * v, freq: rand(1900, 2500), q: 2.5, attack: 0.002 });
+      this.#note(rand(300, 360), t, 0.05, 0.016 * v, 'triangle', { to: 240, attack: 0.003 });
     } else {
       this.#burst(t, rand(0.07, 0.1), { gain: 0.055 * v, freq: rand(700, 1000), to: 450, q: 0.9, attack: 0.008 });
     }
@@ -266,14 +275,18 @@ export class Sound {
     return f;
   }
 
+  // smooth > 0 gives one-pole low-passed ("brown") noise. That is correlated, so a plain
+  // loop would jump at the wrap point; a band-limited step like that is heard as a thump
+  // once filtered (it was the cave thump). Run the filter over the same white noise twice
+  // and keep the second pass: its start then continues from its own end, so the loop is seamless.
   #noiseBuffer(seconds, smooth) {
     const ctx = this.ctx, len = Math.floor(ctx.sampleRate * seconds);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    if (!smooth) return buf;
     let b = 0;
-    for (let i = 0; i < len; i++) {
-      b = b * smooth + (Math.random() * 2 - 1) * (1 - smooth);
-      d[i] = smooth ? b * 6 : b;
-    }
+    for (let i = 0; i < len; i++) b = b * smooth + d[i] * (1 - smooth);
+    for (let i = 0; i < len; i++) { b = b * smooth + d[i] * (1 - smooth); d[i] = b * 6; }
     return buf;
   }
 

@@ -2,7 +2,7 @@
 // hibiscus and the jungle canopy on the hills. Everything is instanced.
 import * as THREE from 'three';
 import { rng, lerp, clamp, TAU, noise2, nearestOnPath } from '../core/util.js';
-import { heightAt, coastAt, rockAt, pathAt, slopeAt, caveAt, roofAt, PATH, CLEFT, POI } from './terrain.js';
+import { heightAt, coastAt, rockAt, pathAt, slopeAt, caveAt, roofAt, inLookoutView, PATH, CLEFT, POI } from './terrain.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { GeoBuilder, addSway, addCollider, setInstance } from './common.js';
 
@@ -252,7 +252,7 @@ export function buildFlora() {
     const x = -46 + r() * 122, z = -56 + r() * 122;
     const sd = coastAt(x, z), h = heightAt(x, z), top = rockAt(x, z) > 0.6 && h > 6.8 && !roofAt(x, z);
     const ok = (sd > 10 && sd < 30 && rockAt(x, z) < 0.3) || top;
-    if (!ok || pathAt(x, z) > 0.25 || slopeAt(x, z) > 0.7 || h < 0.7 || caveAt(x, z) > 0.1) continue;
+    if (!ok || pathAt(x, z) > 0.25 || slopeAt(x, z) > 0.7 || h < 0.7 || caveAt(x, z) > 0.1 || (top && inLookoutView(x, z))) continue;
     setInstance(tufts, nT++, x, h, z, r() * TAU, 1 + r() * 1.3);
   }
   tufts.count = nT;
@@ -276,7 +276,7 @@ export function buildFlora() {
     const x = -50 + r() * 142, z = -60 + r() * 128;
     const sd = coastAt(x, z), h = heightAt(x, z), rock = rockAt(x, z);
     const terrace = sd > 14 && sd < 34 && rock < 0.3;
-    const top = rock > 0.6 && h > 6.6 && slopeAt(x, z) < 0.5 && !roofAt(x, z) && caveAt(x, z) < 0.05 && Math.hypot(x - POI.lookout.x, z - POI.lookout.z) > 5;
+    const top = rock > 0.6 && h > 6.6 && slopeAt(x, z) < 0.5 && !roofAt(x, z) && caveAt(x, z) < 0.05 && !inLookoutView(x, z);
     if (!(terrace || top) || !offPath(x, z, 2.6) || slopeAt(x, z) > 1.3) continue;
     if (top && r() < 0.45) continue;
     shrubAt(x, z, top ? 0.6 + r() * 0.6 : 0.8 + r() * 1.0, true);

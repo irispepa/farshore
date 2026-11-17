@@ -81,7 +81,7 @@ export class ChaseCamera {
   // Spyglass: first-person zoom that tracks a point, with a little free look.
   beginSpy(aim) { this.spyYaw = this.spyPitch = 0; this.aim.copy(aim); }
 
-  spy(dt, eye, aim, look) {
+  spy(dt, eye, aim, look, fov = 17) {
     if (look) {
       this.spyYaw = clamp(this.spyYaw - look.dx * 0.0016, -0.3, 0.3);
       this.spyPitch = clamp(this.spyPitch - look.dy * 0.0016, -0.12, 0.16);
@@ -94,7 +94,7 @@ export class ChaseCamera {
     cam.lookAt(this.aim);
     cam.rotateY(this.spyYaw);
     cam.rotateX(this.spyPitch);
-    this.#setFov(dt, 17, 6);
+    this.#setFov(dt, fov, 6);
     // Keep the orbit camera roughly facing the same way for when the glass comes down.
     this.yaw = Math.atan2(eye.x - this.aim.x, eye.z - this.aim.z);
   }

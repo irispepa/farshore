@@ -355,8 +355,9 @@ export class Game {
   }
 
   // ---- Spyglass -----------------------------------------------------------------
-  #startSpy() {
-    this.spy = { t: 0, seen: 0, done: false };
+  // from: 'lookout' when raised at the lookout bench, so the eye steps up to the lip.
+  #startSpy(from = null) {
+    this.spy = { t: 0, seen: 0, done: false, from };
     this.whale.cue();
     this.cam.beginSpy(this.#whaleAim(this._aim));
     this.ui.spyglass(true);
@@ -372,13 +373,24 @@ export class Game {
   }
 
   #whaleAim(out) {
-    const w = this.whale.group.position;
-    return out.set(w.x, Math.max(1.2, w.y + 1), w.z);
+    return this.whale.watchPoint(out);
   }
 
   #spyEye(out) {
     if (this.mode === 'sail') return out.copy(this.canoe.group.position).setY(1.45 + this.canoe.tilt.position.y);
+    if (this.spy && this.spy.from === 'lookout') {
+      // She steps up beside the bench, a metre toward the sea, wherever in reach she pressed it.
+      const L = POI.lookout, dx = POI.whale.x - L.x, dz = POI.whale.z - L.z, d = Math.hypot(dx, dz);
+      const x = L.x + dx / d, z = L.z + dz / d;
+      return out.set(x, heightAt(x, z) + 1.6, z);
+    }
     return out.copy(this.girl.root.position).setY(this.girl.root.position.y + 1.6);
+  }
+
+  // Zoom so roughly 16 m of height is in view at the whale: a breach fills the glass near or far.
+  #spyFov(eye, aim) {
+    const d = Math.hypot(aim.x - eye.x, aim.z - eye.z);
+    return clamp((2 * Math.atan(8 / Math.max(d, 1)) * 180) / Math.PI, 8, 17);
   }
 
   // ---- Contextual action --------------------------------------------------------
@@ -407,7 +419,7 @@ export class Game {
       if (!s.chests[id]) offer(POI[id === 'islet' ? 'islet' : 'shelfTip'], 2.6, 0.95, { label: 'Open', icon: 'hand', run: () => this.#openChest(id) });
     }
     offer(POI.sign, 2.4, 2.0, { label: 'Read', icon: 'eye', run: () => this.#card('sign') });
-    offer(POI.lookout, 4.6, 1.3, { label: 'Look out', icon: 'eye', run: () => this.#startSpy() });
+    offer(POI.lookout, 4.6, 1.3, { label: 'Look out', icon: 'eye', run: () => this.#startSpy('lookout') });
     const c = this.canoe.group.position;
     const dc = Math.hypot(p.x - c.x, p.z - c.z);
     if (dc < 5.6 && p.y < 1.8 && dc < bestD) best = { label: 'Sail', icon: 'sail', at: this._v.clone().set(c.x, 1.5, c.z), run: () => this.#board() };
@@ -482,7 +494,8 @@ export class Game {
   #updateSpy(dt) {
     const spy = this.spy, whale = this.whale;
     spy.t += dt;
-    this.cam.spy(dt, this.#spyEye(this._eye), this.#whaleAim(this._aim), this.input.consumeLook(this._look));
+    const eye = this.#spyEye(this._eye), aim = this.#whaleAim(this._aim);
+    this.cam.spy(dt, eye, aim, this.input.consumeLook(this._look), this.#spyFov(eye, aim));
     if (whale.breaching) spy.seen += dt;
     // Wait for her to crash back down before calling it a sighting.
     if (spy.seen > 1.2 && !whale.breaching && !spy.done && !this.save.clues.whale) {

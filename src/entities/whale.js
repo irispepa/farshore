@@ -58,6 +58,14 @@ export class Whale {
   // Jump the loop to just before the next breach (used when the player is watching).
   cue() { if (this.time > 3.6) { this.time = CYCLE - 1.2; this.flags = {}; } }
 
+  // Where a watcher should aim: at her, or once she has dived for the lap, where she will breach next.
+  watchPoint(out) {
+    const p = this.group.position;
+    if (this.time < 16.5) return out.set(p.x, Math.max(1.2, p.y + 1), p.z);
+    const ang = (this.lap + 1) * 1.9 + 0.6, heading = ang + Math.PI / 2;
+    return out.set(this.centre.x + Math.cos(ang) * 12 - Math.sin(heading) * 4, 1.2, this.centre.z + Math.sin(ang) * 12 - Math.cos(heading) * 4);
+  }
+
   once(name, fn) { if (!this.flags[name]) { this.flags[name] = true; fn(); } }
 
   update(dt) {
